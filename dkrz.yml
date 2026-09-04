@@ -1,0 +1,17 @@
+name: wiki-js-dkrz
+on: workflow_dispatch
+
+jobs:
+  ferry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull wiki.js image
+        run: docker pull ghcr.io/requarks/wiki:2
+      - name: Save and compress
+        run: docker save ghcr.io/requarks/wiki:2 | gzip > wiki.tar.gz
+      - name: Record digest
+        run: docker image inspect ghcr.io/requarks/wiki:2 --format '{{json .RepoDigests}}'
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+        
