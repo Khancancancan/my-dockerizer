@@ -1,4 +1,4 @@
-name: dkrz
+name: wiki-js
 on: workflow_dispatch
 
 jobs:
