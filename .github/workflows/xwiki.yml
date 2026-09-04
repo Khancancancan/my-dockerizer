@@ -1,0 +1,36 @@
+name: Xwiki Ferry Build 
+
+on:
+  workflow_dispatch:
+    inputs:
+      xwiki_dir:
+        description: '版本/变体目录'
+        default: '17/mysql-tomcat'
+      mysql_tag:
+        description: 'MySQL 镜像 tag'
+        default: '8.4'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build XWiki image
+        working-directory: ${{ inputs.xwiki_dir }}
+        env: { DOCKER_BUILDKIT: 0 }
+        run: |
+          XWIKI_VERSION=$(grep -E '^XWIKI_VERSION=' .env | cut -d= -f2)
+          echo "XWIKI_VERSION=$XWIKI_VERSION" >> $GITHUB_ENV
+          docker build -t "xwiki:$XWIKI_VERSION-mysql-tomcat" .
+      - name: Verify image content
+        run: docker run --rm --entrypoint sh "xwiki:${{ env.XWIKI_VERSION }}-mysql-tomcat" -c '...'
+      - name: Pull MySQL
+        run: docker pull "mysql:${{ inputs.mysql_tag }}"
+      - name: Save images
+        run: |
+          docker save "xwiki:${{ env.XWIKI_VERSION }}-mysql-tomcat" | gzip > "xwiki-${{ env.XWIKI_VERSION }}-mysql-tomcat.tar.gz"
+          docker save "mysql:${{ inputs.mysql_tag }}" | gzip > "mysql-${{ inputs.mysql_tag }}.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ferry-images
+          path: '*.tar.gz'
