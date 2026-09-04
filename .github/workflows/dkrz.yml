@@ -7,13 +7,25 @@ jobs:
     steps:
       - name: Pull wiki.js image
         run: docker pull ghcr.io/requarks/wiki:2
+
+      - name: Get version from image
+        id: meta
+        run: |
+          VERSION=$(docker run --rm --entrypoint cat ghcr.io/requarks/wiki:2 /wiki/package.json | jq -r .version)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "### Wiki.js version: $VERSION" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Save and compress
-        run: docker save ghcr.io/requarks/wiki:2 | gzip > wiki.tar.gz
+        run: docker save ghcr.io/requarks/wiki:2 | gzip > wiki-${{ steps.meta.outputs.version }}.tar.gz
+
       - name: Record digest
-        run: docker image inspect ghcr.io/requarks/wiki:2 --format '{{json .RepoDigests}}'
+        run: |
+          DIGEST=$(docker image inspect ghcr.io/requarks/wiki:2 --format '{{index .RepoDigests 0}}')
+          echo "digest: $DIGEST" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: wiki-image
-          path: wiki.tar.gz
-        
+          path: wiki-${{ steps.meta.outputs.version }}.tar.gz
+  
