@@ -2,26 +2,29 @@ name: 打包 sandbox 镜像
 
 on:
   workflow_dispatch:
-
-env:
-  TAG: v1.11.0
+    inputs:
+      tag:
+        required: true
+        default: 'v1.11.0'
 
 jobs:
   bundle:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取官方镜像并导出
-        run: |
-          docker pull ghcr.io/agent-infra/sandbox:v1.11.0
-          docker tag ghcr.io/agent-infra/sandbox:v1.11.0 agent-infra-sandbox:v1.11.0
-          docker save --format docker agent-infra-sandbox:v1.11.0 | gzip > sandbox_v1.11.0.tar.gz
-          # 分卷，每卷 500MB (or some reasonable size)
-          split -b 500M -d sandbox_v1.11.0.tar.gz sandbox_v1.11.0.tar.gz.part
-          # List the parts for artifact upload
-          ls -lh sandbox_v1.11.0.tar.gz.part*
+      - run: |
+          TAG="${{ inputs.tag }}"
+          for t in "$TAG" "${TAG#v}"; do
+            if docker pull "ghcr.io/agent-infra/sandbox:$t"; then
+              docker tag "ghcr.io/agent-infra/sandbox:$t" agent-infra-sandbox:"$TAG"
+              docker save --format docker agent-infra-sandbox:"$TAG" | gzip > "sandbox_${TAG}.tar.gz"
+              split -b 2G -d "sandbox_${TAG}.tar.gz" "sandbox_${TAG}.tar.gz.part"
+              exit 0
+            fi
+          done
+          exit 1
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sandbox-image-tar
-          path: sandbox_v1.11.0.tar.gz.part*
+          name: sandbox-image-parts
+          path: sandbox_*.tar.gz.part*
           retention-days: 30
