@@ -1,0 +1,21 @@
+name: 查看镜像信息
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取并查看
+        run: |
+          for t in v1.11.0 1.11.0; do
+            if docker pull "ghcr.io/agent-infra/sandbox:$t"; then
+              img="ghcr.io/agent-infra/sandbox:$t"
+              break
+            fi
+          done
+          echo "===== /etc/os-release ====="
+          docker run --rm "$img" cat /etc/os-release
+          echo "===== 分层历史 ====="
+          docker history "$img"
