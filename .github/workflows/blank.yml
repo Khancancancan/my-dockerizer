@@ -14,17 +14,19 @@ jobs:
     steps:
       - name: 拉取源码
         run: git clone --depth 1 --branch "$TAG" "$REPO" src
-
+        
       - name: 构建镜像
         run: |
           cd src
-          if [ -f Dockerfile ]; then
-            ctx=.
-          else
-            ctx="$(dirname "$(find . -name Dockerfile | head -1)")"
+          mapfile -t dfs < <(find . -type f -name 'Dockerfile*' -size +10c | sort)
+          if [ "${#dfs[@]}" -eq 0 ]; then
+            echo "没找到非空 Dockerfile"; exit 1
           fi
-          echo "构建目录: $ctx"
-          docker build -t "$IMAGE" "$ctx"
+          echo "候选："
+          printf '%s\n' "${dfs[@]}"
+          f="${dfs[0]}"
+          echo "使用 $f 构建"
+          docker build -f "$f" -t "$IMAGE" "$(dirname "$f")"
 
       - name: 导出 tar.gz
         run: docker save "$IMAGE" | gzip > sandbox_v1.11.0.tar.gz
