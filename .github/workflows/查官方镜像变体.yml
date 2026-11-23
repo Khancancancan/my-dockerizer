@@ -1,0 +1,22 @@
+name: 查官方镜像变体
+
+on:
+  workflow_dispatch:
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 查询
+        run: |
+          echo "===== README 里的镜像说明 ====="
+          git clone --depth 1 https://github.com/agent-infra/sandbox.git src
+          grep -inE 'ghcr|docker pull|image|镜像' src/README*.md | head -40
+
+          echo "===== sandbox 镜像的全部 tag ====="
+          token=$(curl -s "https://ghcr.io/token?scope=repository:agent-infra/sandbox:pull&service=ghcr.io" | jq -r .token)
+          curl -s -H "Authorization: Bearer $token" https://ghcr.io/v2/agent-infra/sandbox/tags/list | jq -r '.tags[]'
+
+          echo "===== agent-infra 组织的其他镜像 ====="
+          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/orgs/agent-infra/packages?package_type=container" | jq -r '.[].name'
