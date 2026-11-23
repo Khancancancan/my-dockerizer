@@ -10,25 +10,18 @@ jobs:
   bundle:
     runs-on: ubuntu-latest
     steps:
-      - name: 打印仓库结构（诊断用）
-        run: |
-          git clone --depth 1 --branch "$TAG" https://github.com/agent-infra/sandbox.git src
-          find src -type f -not -path '*/.git/*' | sort
-
       - name: 拉取官方镜像并导出
         run: |
-          for t in "$TAG" "${TAG#v}"; do
-            if docker pull "ghcr.io/agent-infra/sandbox:$t"; then
-              docker tag "ghcr.io/agent-infra/sandbox:$t" agent-infra-sandbox:v1.11.0
-              docker save agent-infra-sandbox:v1.11.0 | gzip > sandbox_v1.11.0.tar.gz
-              exit 0
-            fi
-          done
-          echo "ghcr.io/agent-infra/sandbox 的 v1.11.0 和 1.11.0 两种 tag 都拉取失败"
-          exit 1
+          docker pull ghcr.io/agent-infra/sandbox:v1.11.0
+          docker tag ghcr.io/agent-infra/sandbox:v1.11.0 agent-infra-sandbox:v1.11.0
+          docker save --format docker agent-infra-sandbox:v1.11.0 | gzip > sandbox_v1.11.0.tar.gz
+          # 分卷，每卷 500MB (or some reasonable size)
+          split -b 500M -d sandbox_v1.11.0.tar.gz sandbox_v1.11.0.tar.gz.part
+          # List the parts for artifact upload
+          ls -lh sandbox_v1.11.0.tar.gz.part*
 
       - uses: actions/upload-artifact@v4
         with:
           name: sandbox-image-tar
-          path: sandbox_v1.11.0.tar.gz
+          path: sandbox_v1.11.0.tar.gz.part*
           retention-days: 30
