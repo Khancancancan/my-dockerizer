@@ -4,32 +4,28 @@ on:
   workflow_dispatch:
 
 env:
-  REPO: https://github.com/agent-infra/sandbox.git
   TAG: v1.11.0
-  IMAGE: agent-infra-sandbox:v1.11.0
 
 jobs:
-  build:
+  bundle:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取源码
-        run: git clone --depth 1 --branch "$TAG" "$REPO" src
-        
-      - name: 构建镜像
+      - name: 打印仓库结构（诊断用）
         run: |
-          cd src
-          mapfile -t dfs < <(find . -type f -name 'Dockerfile*' -size +10c | sort)
-          if [ "${#dfs[@]}" -eq 0 ]; then
-            echo "没找到非空 Dockerfile"; exit 1
-          fi
-          echo "候选："
-          printf '%s\n' "${dfs[@]}"
-          f="${dfs[0]}"
-          echo "使用 $f 构建"
-          docker build -f "$f" -t "$IMAGE" "$(dirname "$f")"
+          git clone --depth 1 --branch "$TAG" https://github.com/agent-infra/sandbox.git src
+          find src -type f -not -path '*/.git/*' | sort
 
-      - name: 导出 tar.gz
-        run: docker save "$IMAGE" | gzip > sandbox_v1.11.0.tar.gz
+      - name: 拉取官方镜像并导出
+        run: |
+          for t in "$TAG" "${TAG#v}"; do
+            if docker pull "ghcr.io/agent-infra/sandbox:$t"; then
+              docker tag "ghcr.io/agent-infra/sandbox:$t" agent-infra-sandbox:v1.11.0
+              docker save agent-infra-sandbox:v1.11.0 | gzip > sandbox_v1.11.0.tar.gz
+              exit 0
+            fi
+          done
+          echo "ghcr.io/agent-infra/sandbox 的 v1.11.0 和 1.11.0 两种 tag 都拉取失败"
+          exit 1
 
       - uses: actions/upload-artifact@v4
         with:
