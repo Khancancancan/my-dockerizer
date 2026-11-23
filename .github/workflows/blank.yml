@@ -16,7 +16,9 @@ jobs:
           for t in "$TAG" "${TAG#v}"; do
             if docker pull "ghcr.io/agent-infra/sandbox:$t"; then
               docker tag "ghcr.io/agent-infra/sandbox:$t" agent-infra-sandbox:"$TAG"
-              docker save --format docker agent-infra-sandbox:"$TAG" | gzip > "sandbox_${TAG}.tar.gz"
+              sudo apt-get update -qq && sudo apt-get install -y -qq skopeo
+              skopeo copy docker-daemon:agent-infra-sandbox:"$TAG" docker-archive:"sandbox_${TAG}.tar" --format docker
+              gzip "sandbox_${TAG}.tar"
               split -b 2G -d "sandbox_${TAG}.tar.gz" "sandbox_${TAG}.tar.gz.part"
               exit 0
             fi
