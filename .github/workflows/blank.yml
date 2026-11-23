@@ -1,0 +1,36 @@
+name: 打包 sandbox 镜像
+
+on:
+  workflow_dispatch:
+
+env:
+  REPO: https://github.com/agent-infra/sandbox.git
+  TAG: v1.11.0
+  IMAGE: agent-infra-sandbox:v1.11.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取源码
+        run: git clone --depth 1 --branch "$TAG" "$REPO" src
+
+      - name: 构建镜像
+        run: |
+          cd src
+          if [ -f Dockerfile ]; then
+            ctx=.
+          else
+            ctx="$(dirname "$(find . -name Dockerfile | head -1)")"
+          fi
+          echo "构建目录: $ctx"
+          docker build -t "$IMAGE" "$ctx"
+
+      - name: 导出 tar.gz
+        run: docker save "$IMAGE" | gzip > sandbox_v1.11.0.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-image-tar
+          path: sandbox_v1.11.0.tar.gz
+          retention-days: 30
